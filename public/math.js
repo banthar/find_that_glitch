@@ -20,25 +20,25 @@ function multiply(a,b) {
 	return c;
 }
 function rotateX(m, a){
-	return multiply(m, [
+	return multiply([
 		1,0,0,0,
 		0,cos(a),-sin(a),0,
 		0,sin(a),cos(a),0,
-		0,0,0,1])
+		0,0,0,1],m)
 }
 function rotateY(m, a){
-	return multiply(m, [
+	return multiply([
 		cos(a),0,sin(a),0,
 		0,1,0,0,
 		-sin(a),0,cos(a),0,
-		0,0,0,1])
+		0,0,0,1],m)
 }
 function rotateZ(m, a){
-	return multiply(m, [
+	return multiply([
 		cos(a),-sin(a),0,0,
 		sin(a),cos(a),0,0,
 		0,0,1,0,
-		0,0,0,1])
+		0,0,0,1],m)
 }
 function perspective(r,t,f,n) {
 	return new Float32Array([
@@ -47,3 +47,18 @@ function perspective(r,t,f,n) {
 		  0,  0,2/(n-f),(f+n)/(n-f),
 		  0,  0,      0,          1])
 }
+function add(a,b) {
+	var c = new Float32Array(a.length);
+	for(var i=0;i<c.length;i++) {
+		c[i]=a[i]+b[i];
+	}
+	return c;
+}
+function mulf(a,b) {
+	var c = new Float32Array(a.length);
+	for(var i=0;i<c.length;i++) {
+		c[i]=a[i]*b;
+	}
+	return c;
+}
+

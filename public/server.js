@@ -1,14 +1,20 @@
 "use strict";
 
+var players = {};
+
 module.exports = function (socket) {
 
 	socket.on("disconnect", function () {
 		console.log("Disconnected: " + socket.id);
 	});
-
-	socket.on("x", function (y) {
-		console.log("x: ", socket.id, y);
+	socket.on("dig", function (pos) {
+		console.log("dig", pos);
+		for(var id in players) {
+			players[id].socket.emit("dig", pos);
+		}
 	});
 
-	console.log("Connected: " + socket.id);
+	players[socket.id] = {
+		socket: socket,
+	}
 };

@@ -62,16 +62,25 @@ gl.attachShader(program, createShader(gl.VERTEX_SHADER, `
 precision mediump float;
 uniform mat4 transform;
 attribute vec3 position;
-varying vec4 color;
+attribute vec3 normal;
+varying vec3 fragmentNormal;
+varying vec3 fragmentPosition;
 void main(void) {
-	color = vec4((sin(position*20.0)),1.0);
-	gl_Position = transform*vec4(position, 1.0);
+	gl_Position = transform*vec4(position,1.0);
+	fragmentNormal = normal;
+	fragmentPosition = position;
 }`));
 gl.attachShader(program, createShader(gl.FRAGMENT_SHADER, `
 precision mediump float;
-varying vec4 color;
+varying vec3 fragmentNormal;
+varying vec3 fragmentPosition;
 void main(void) {
-	gl_FragColor = color;
+	vec3 pos = fragmentPosition+fragmentNormal*1.0/32.0;
+	vec3 n = vec3(4.0,4.0,8.0);
+	vec3 p = 1.0-abs(1.0-2.0*fract((pos+vec3(1.0/8.0,0.125,0.0)*floor(pos.z*8.0))*n));
+	float c = min(p.x,min(p.y,p.z));
+	c = c>.1?1.0:0.0;
+	gl_FragColor = vec4(c,c,c,1.0);
 }`));
 gl.linkProgram(program);
 if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
@@ -94,6 +103,9 @@ function quad(v, position, normal) {
 		add([.5,.5,.5],add(position,mulf(add(normal,f),.5))).forEach(function(s){
 			v.push(s);
 		});
+		normal.forEach(function(s){
+			v.push(s);
+		});
 	});
 }
 function draw() {
@@ -113,7 +125,7 @@ function draw() {
 			}
 		}
 	}
-	bufferLength=vertices.length/3;
+	bufferLength=vertices.length/6;
 	gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
 }
@@ -147,8 +159,12 @@ function update() {
 	gl.uniformMatrix4fv(ptransformUniform, false, translate(rotateZ(rotateX(perspective(identity(), 1,w/h,100,0.01),rotX),rotZ),mulf(pos,-1)));
 	var vertexPositionAttribute = gl.getAttribLocation(program, "position");
 	gl.enableVertexAttribArray(vertexPositionAttribute);
+	var normalAttribute = gl.getAttribLocation(program, "normal");
+	gl.enableVertexAttribArray(normalAttribute);
 	gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-	gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
+	var stride = 6*4;
+	gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, stride, 0);
+	gl.vertexAttribPointer(normalAttribute, 3, gl.FLOAT, false, stride, 3*4);
 	gl.drawArrays(gl.TRIANGLES, 0, bufferLength);
 	requestAnimationFrame(update);
 }

@@ -7,6 +7,14 @@ var mapSize = 17;
 var map = new Int8Array(mapSize*mapSize*mapSize);
 var keys = [];
 var pos = [mapSize/2,mapSize/2,mapSize/2];
+set(pos.map(Math.floor), 1);
+function trace() {
+	var log = document.getElementById("log");
+	log.appendChild(document.createTextNode(Array.prototype.slice.call(arguments).join(" ")+"\n"));
+	setTimeout(function(){
+		log.firstChild.remove();
+	}, 5000)
+}
 function get(p) {
 	if(Math.min(p[0],p[1],p[2])<0 || Math.max(p[0],p[1],p[2])>=mapSize) {
 		return -1;
@@ -164,20 +172,21 @@ function update() {
 }
 
 socket.on("dig", function (pos) {
+	trace("dig",pos);
 	set(pos,1);
 	draw();
 });
 
 socket.on("connect", function () {
-	console.log("connect");
+	trace("connect");
 });
 
 socket.on("disconnect", function () {
-	console.log("disconnect");
+	trace("disconnect");
 });
 
 socket.on("error", function () {
-	console.log("error");
+	trace("error");
 });
 
 update();

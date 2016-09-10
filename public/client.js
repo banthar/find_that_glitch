@@ -3,10 +3,10 @@ var socket = io({ upgrade: false, transports: ["websocket"] });
 var screen = document.getElementById("screen");
 var rotX = Math.PI*.5;
 var rotZ = 0;
-var mapSize = 16;
+var mapSize = 17;
 var map = new Int8Array(mapSize*mapSize*mapSize);
 var keys = [];
-var pos = [.5,.5,.5];
+var pos = [mapSize/2,mapSize/2,mapSize/2];
 function get(p) {
 	if(Math.min(p[0],p[1],p[2])<0 || Math.max(p[0],p[1],p[2])>=mapSize) {
 		return -1;
@@ -19,22 +19,17 @@ function set(p,v) {
 	}
 	map[(p[2]*mapSize+p[1])*mapSize+p[0]] = v;
 }
-set([0,0,0],1);
-set([0,1,0],1);
-set([0,2,0],1);
-set([1,2,0],1);
-set([1,2,1],1);
-set([1,2,2],1);
 function clamp(v, min, max) {
     return Math.max(min,Math.min(v,max));
 }
 screen.onclick = function() {
   screen.requestPointerLock();
 }
-
 screen.onmousemove = function(e) {
-	rotZ-=e.movementX*0.01;
-	rotX=clamp(rotX-e.movementY*0.01,0,Math.PI)
+	if(document.pointerLockElement != null) {
+		rotZ-=e.movementX*0.01;
+		rotX=clamp(rotX-e.movementY*0.01,0,Math.PI)
+	}
 }
 screen.tabIndex = 0;
 screen.onkeydown = function(e) {
@@ -118,7 +113,6 @@ function draw() {
 					[[-1,0,0],[0,-1,0],[0,0,-1],[0,0,1],[0,1,0],[1,0,0]].forEach(function(n){
 						if(get(add([x,y,z],n))!==1) {
 							quad(vertices, [x,y,z], n);
-					
 						}
 					});
 				}

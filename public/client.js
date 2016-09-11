@@ -1,4 +1,5 @@
 "use strict";
+var moveLocked = true;
 var socket = io({ upgrade: false, transports: ["websocket"] });
 var screen = document.getElementById("screen");
 var rotX = Math.PI*.5;
@@ -7,7 +8,8 @@ var mapSize = 17;
 var map = new Int8Array(mapSize*mapSize*mapSize);
 var keys = [];
 var pos = [mapSize/2,mapSize/2,mapSize/2];
-set(pos.map(Math.floor), 1);
+var dugOut = null;
+set(floorv(pos), 1);
 function trace() {
 	var log = document.getElementById("log");
 	log.appendChild(document.createTextNode(Array.prototype.slice.call(arguments).join(" ")+"\n"));
@@ -129,22 +131,28 @@ function draw() {
 	}
 	bufferLength=vertices.length/6;
 	gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
 }
 draw();
 function tick() {
+	if(moveLocked){
+		return;
+	}
 	var s = 0.1;
 	var dir = [keys[83]?s:0+keys[87]?-s:0,keys[68]?s:0+keys[65]?-s:0,keys[32]?s:0+keys[67]?-s:0];
 	var v = [sin(rotZ) * dir[0] + cos(rotZ) * dir[1], -cos(rotZ) * dir[0] + sin(rotZ) * dir[1], dir[2]];
 	for(var i=0;i<3;i++) {
 		pos[i]+=v[i];
-		if(get(floorv(pos))===-1){
+		var p = get(floorv(pos));
+		if(p===-1 || (dugOut==null && p!=1)){
 			pos[i]-=v[i];
 		}
 	}
 	var pi = floorv(pos);
 	if(get(pi) === 0) {
-		socket.emit("dig", pi);
+		dugOut.push(pi);
+		set(pi,1);
+		draw();
 	}
 }
 function update() {
@@ -152,9 +160,9 @@ function update() {
 	var w = screen.width = innerWidth
 	var h = screen.height = innerHeight
 	gl.viewport(0, 0, w, h);
-    gl.cullFace(gl.BACK);
-    gl.enable(gl.CULL_FACE);
-    gl.enable(gl.DEPTH_TEST);
+  gl.cullFace(gl.BACK);
+  gl.enable(gl.CULL_FACE);
+  gl.enable(gl.DEPTH_TEST);
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 	gl.useProgram(program);
 	var ptransformUniform = gl.getUniformLocation(program, "transform");
@@ -171,12 +179,44 @@ function update() {
 	requestAnimationFrame(update);
 }
 
-socket.on("dig", function (pos) {
-	trace("dig",pos);
-	set(pos,1);
-	draw();
+socket.on("digStart", function(time) {
+	map = new Int8Array(mapSize*mapSize*mapSize);
+	pos = [mapSize/2,mapSize/2,mapSize/2];
+	set(floorv(pos), 1);
+	dugOut = [];
+	moveLocked = false;
+	trace("Dig");
 });
-
+socket.on("digEnd", function(){
+	socket.emit("dugOut", dugOut);
+	dugOut = null;
+	moveLocked = true;
+	trace("Dig ended");
+});
+socket.on("hideStart", function(totalDugOut){
+	map = new Int8Array(mapSize*mapSize*mapSize);
+	pos = [mapSize/2,mapSize/2,mapSize/2];
+	set(floorv(pos), 1);
+	totalDugOut.forEach(function(p){
+		set(p, 1);
+	});
+	draw();
+	moveLocked = false;
+	trace("Hide");
+});
+socket.on("hideEnd", function(){
+	moveLocked = true;
+	socket.emit("hideAt", pos);
+	trace("Hide ended");
+});
+socket.on("findStart", function(positions){
+	moveLocked = false;
+	trace("Find "+positions);
+});
+socket.on("findEnd", function(positions){
+	moveLocked = true;
+	trace("Find ended");
+});
 socket.on("connect", function () {
 	trace("connect");
 });

@@ -2,13 +2,22 @@
 
 var players = new Set();
 
+var digTimeout = 5000;
+var digPause = 3000;
+
+var hideTimeout = 5000;
+var hidePause = 3000;
+
+var findTimeout = 5000;
+var findPause = 3000;
+
 function main() {
 	players.forEach(function(player){
-		player.socket.emit("digStart");
+		player.socket.emit("digStart", digTimeout);
 	});
 	setTimeout(function(){
 		players.forEach(function(player){
-			player.socket.emit("digEnd");
+			player.socket.emit("digEnd", digPause);
 		});
 		setTimeout(function(){
 			var dugOut = [];
@@ -21,11 +30,11 @@ function main() {
 				}
 			});
 			players.forEach(function(player){
-				player.socket.emit("hideStart", dugOut);
+				player.socket.emit("hideStart", hideTimeout, dugOut);
 			});
 			setTimeout(function(){
 				players.forEach(function(player){
-						player.socket.emit("hideEnd");
+						player.socket.emit("hideEnd", hidePause);
 				});
 				setTimeout(function(){
 					var positions = [];
@@ -35,20 +44,20 @@ function main() {
 						}
 					});
 					players.forEach(function(player){
-							player.socket.emit("findStart", positions);
+							player.socket.emit("findStart", findTimeout, positions);
 					});
 					setTimeout(function(){
 						players.forEach(function(player){
-								player.socket.emit("findEnd");
+								player.socket.emit("findEnd", findPause);
 						});
 						setTimeout(function(){
 							main();
-						},3000);
-					},3000);
-				},3000);
-			},3000);
-		},3000);
-	},3000);
+						},findPause);
+					},findTimeout);
+				},hidePause);
+			},hideTimeout);
+		},digPause);
+	},digTimeout);
 }
 
 module.exports = function (socket) {

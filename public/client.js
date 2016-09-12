@@ -9,13 +9,11 @@ var map = new Int8Array(mapSize*mapSize*mapSize);
 var keys = [];
 var pos = [mapSize/2,mapSize/2,mapSize/2];
 var dugOut = null;
+var deadline = new Date().getTime();
+var message = "";
 set(floorv(pos), 1);
 function trace() {
-	var log = document.getElementById("log");
-	log.appendChild(document.createTextNode(Array.prototype.slice.call(arguments).join(" ")+"\n"));
-	setTimeout(function(){
-		log.firstChild.remove();
-	}, 5000)
+	message = Array.prototype.slice.call(arguments).join(" ");
 }
 function get(p) {
 	if(Math.min(p[0],p[1],p[2])<0 || Math.max(p[0],p[1],p[2])>=mapSize) {
@@ -176,24 +174,31 @@ function update() {
 	gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, stride, 0);
 	gl.vertexAttribPointer(normalAttribute, 3, gl.FLOAT, false, stride, 3*4);
 	gl.drawArrays(gl.TRIANGLES, 0, bufferLength);
+	var secondsRemaining = Math.max(0,Math.floor(1+(deadline - new Date().getTime())/1000.0));
+	document.getElementById("log").innerText = message.replace("{}", secondsRemaining+" seconds");
 	requestAnimationFrame(update);
 }
-
-socket.on("digStart", function(time) {
+function setDeadline(timeLeft) {
+	deadline = new Date().getTime()+timeLeft;
+}
+socket.on("digStart", function(timeLeft) {
+	setDeadline(timeLeft);
 	map = new Int8Array(mapSize*mapSize*mapSize);
 	pos = [mapSize/2,mapSize/2,mapSize/2];
 	set(floorv(pos), 1);
 	dugOut = [];
 	moveLocked = false;
-	trace("Dig");
+	trace("Dig! {} remainig");
 });
-socket.on("digEnd", function(){
+socket.on("digEnd", function(timeLeft){
+	setDeadline(timeLeft);
 	socket.emit("dugOut", dugOut);
 	dugOut = null;
 	moveLocked = true;
-	trace("Dig ended");
+	trace("Starting hide in {}");
 });
-socket.on("hideStart", function(totalDugOut){
+socket.on("hideStart", function(timeLeft, totalDugOut){
+	setDeadline(timeLeft);
 	map = new Int8Array(mapSize*mapSize*mapSize);
 	pos = [mapSize/2,mapSize/2,mapSize/2];
 	set(floorv(pos), 1);
@@ -202,31 +207,34 @@ socket.on("hideStart", function(totalDugOut){
 	});
 	draw();
 	moveLocked = false;
-	trace("Hide");
+	trace("Hide! {} remaining");
 });
-socket.on("hideEnd", function(){
+socket.on("hideEnd", function(timeLeft){
+	setDeadline(timeLeft);
 	moveLocked = true;
 	socket.emit("hideAt", pos);
-	trace("Hide ended");
+	trace("Find starts in {}");
 });
-socket.on("findStart", function(positions){
+socket.on("findStart", function(timeLeft, positions){
+	setDeadline(timeLeft);
 	moveLocked = false;
-	trace("Find "+positions);
+	trace("Find ends in {}");
 });
-socket.on("findEnd", function(positions){
+socket.on("findEnd", function(timeLeft){
+	setDeadline(timeLeft);
 	moveLocked = true;
-	trace("Find ended");
+	trace("Dig starts in {}");
 });
 socket.on("connect", function () {
-	trace("connect");
+	trace("Connected");
 });
 
 socket.on("disconnect", function () {
-	trace("disconnect");
+	trace("Disconnected");
 });
 
 socket.on("error", function () {
-	trace("error");
+	trace("Error");
 });
 
 update();

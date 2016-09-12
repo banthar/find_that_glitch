@@ -31,10 +31,14 @@ function clamp(v, min, max) {
     return Math.max(min,Math.min(v,max));
 }
 screen.onclick = function() {
-  screen.requestPointerLock();
+	if(screen.requestPointerLock){
+		screen.requestPointerLock();
+	} else {
+		screen.mozRequestPointerLock();
+	}
 }
 screen.onmousemove = function(e) {
-	if(document.pointerLockElement != null) {
+	if(document.pointerLockElement != null || document.mozPointerLockElement != null) {
 		rotZ-=e.movementX*0.01;
 		rotX=clamp(rotX-e.movementY*0.01,0,Math.PI)
 	}

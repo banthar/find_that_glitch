@@ -3,13 +3,16 @@
 var lastId = 0;
 var players = new Set();
 
-var digTimeout = 5000;
-var digPause = 3000;
+var s = 1000;
 
-var hideTimeout = 5000;
-var hidePause = 3000;
+var digTimeout = 15*s;
+var digPause = 3*s;
 
-var findTimeout = 10000;
+var hideTimeout = 20*s;
+var hidePause = 3*s;
+
+var findTimeout = 20*s;
+var findTimeoutPerPlayer = 10*s;
 var findPause = 3000;
 
 var scorePause = 10000;
@@ -47,8 +50,9 @@ function main() {
 							player.pos = null;
 						}
 					});
+					var t = findTimeout + findTimeoutPerPlayer * players.size;
 					players.forEach(function(player){
-							player.socket.emit("findStart", findTimeout, positions);
+							player.socket.emit("findStart", t, positions);
 					});
 					setTimeout(function(){
 						players.forEach(function(player){
@@ -67,10 +71,12 @@ function main() {
 								player.socket.emit("score", scorePause, player.id, score);
 							});
 							setTimeout(function(){
-								main();
+								if(players.size>0) {
+									main();
+								}
 							},scorePause);
 						},findPause);
-					},findTimeout);
+					},t);
 				},hidePause);
 			},hideTimeout);
 		},digPause);
@@ -87,7 +93,7 @@ module.exports = function (socket) {
 	}
 	players.add(player);
 	socket.on("disconnect", function () {
-		console.log("Disconnected: " + socket.id);
+		players.delete(player);
 	});
 	socket.on("dugOut", function(dugOut) {
 		player.dugOut = dugOut;

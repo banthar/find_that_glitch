@@ -41,6 +41,7 @@ function main() {
 					players.forEach(function(player){
 						if(player.pos) {
 							positions.push(player.pos);
+							player.pos = null;
 						}
 					});
 					players.forEach(function(player){

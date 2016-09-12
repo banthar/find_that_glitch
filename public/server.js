@@ -1,5 +1,6 @@
 "use strict";
 
+var lastId = 0;
 var players = new Set();
 
 var digTimeout = 5000;
@@ -8,8 +9,10 @@ var digPause = 3000;
 var hideTimeout = 5000;
 var hidePause = 3000;
 
-var findTimeout = 5000;
+var findTimeout = 10000;
 var findPause = 3000;
+
+var scorePause = 10000;
 
 function main() {
 	players.forEach(function(player){
@@ -52,7 +55,20 @@ function main() {
 								player.socket.emit("findEnd", findPause);
 						});
 						setTimeout(function(){
-							main();
+							var score = [];
+							players.forEach(function(opponent){
+								if(opponent.glitchesFound !== null) {
+									score.push([opponent.id, opponent.glitchesFound]);
+									opponent.glitchesFound = null;
+								}
+							});
+							score.sort(function(a,b){return b[1]-a[1]});
+							players.forEach(function(player){
+								player.socket.emit("score", scorePause, player.id, score);
+							});
+							setTimeout(function(){
+								main();
+							},scorePause);
 						},findPause);
 					},findTimeout);
 				},hidePause);
@@ -64,6 +80,10 @@ function main() {
 module.exports = function (socket) {
 	var player = {
 		socket: socket,
+		id: lastId++,
+		glitchesFound: null,
+		hideAt: null,
+		dugOut: null,
 	}
 	players.add(player);
 	socket.on("disconnect", function () {
@@ -74,6 +94,9 @@ module.exports = function (socket) {
 	});
 	socket.on("hideAt", function(pos) {
 		player.pos = pos;
+	});
+	socket.on("glitchesFound", function(glitchesFound) {
+		player.glitchesFound = glitchesFound;
 	});
 	if(players.size==1) {
 		main();

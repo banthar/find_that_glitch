@@ -70,6 +70,16 @@ function add(a,b) {
 	}
 	return c;
 }
+function sub(a,b) {
+	return add(a,mulf(b,-1.0));
+}
+function distance(a,b) {
+	var sum = 0;
+	sub(a,b).forEach(function(s){
+		sum = Math.max(sum,Math.abs(s));
+	});
+	return sum;
+}
 function mulf(a,b) {
 	var c = new Float32Array(a.length);
 	for(var i=0;i<c.length;i++) {

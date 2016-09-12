@@ -12,6 +12,8 @@ var dugOut = null;
 var deadline = new Date().getTime();
 var message = function(){return ""};
 var glitches = null;
+var glitchesFound = 0;
+var totalGlitches = 0;
 set(floorv(pos), 1);
 function get(p) {
 	if(Math.min(p[0],p[1],p[2])<0 || Math.max(p[0],p[1],p[2])>=mapSize) {
@@ -76,12 +78,14 @@ precision mediump float;
 varying vec3 fragmentNormal;
 varying vec3 fragmentPosition;
 void main(void) {
+	float ceil = max(fragmentNormal.z,0.0)*3.0+1.0;
 	vec3 pos = fragmentPosition+fragmentNormal*1.0/32.0;
 	vec3 n = vec3(4.0,4.0,8.0);
-	vec3 p = 1.0-abs(1.0-2.0*fract((pos+vec3(1.0/8.0,0.125,0.0)*floor(pos.z*8.0))*n));
+	vec3 p = 1.0-abs(1.0-2.0*fract((pos/vec3(ceil,ceil,1.0)+vec3(1.0/8.0,0.125,0.0)*floor(pos.z*8.0))*n));
 	float c = min(p.x,min(p.y,p.z));
-	c = c>.1?1.0:0.0;
-	gl_FragColor = vec4(c,c,c,1.0);
+	c = min(c,0.25)*3.0;
+	float side = max(0.3+fragmentNormal.z,abs(fragmentNormal.z));
+	gl_FragColor = vec4(c,c,c,1.0)*vec4(1.0,side,side,1.0);
 }`));
 gl.linkProgram(program);
 if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
@@ -125,6 +129,18 @@ function draw() {
 			}
 		}
 	}
+	if(glitches) {
+		glitches.forEach(function(g){
+			for(var i=0;i<3*10;i++) {
+				g.forEach(function(s){
+					vertices.push(s+(Math.random()-0.5)*.5);
+				})
+				for(var j=0;j<3;j++) {
+					vertices.push(Math.random()*2.0-.5);
+				}
+			}
+		});
+	}
 	bufferLength=vertices.length/6;
 	gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
@@ -134,7 +150,7 @@ function tick() {
 	if(moveLocked){
 		return;
 	}
-	var s = 0.1;
+	var s = 0.05;
 	var dir = [keys[83]?s:0+keys[87]?-s:0,keys[68]?s:0+keys[65]?-s:0,keys[32]?s:0+keys[67]?-s:0];
 	var v = [sin(rotZ) * dir[0] + cos(rotZ) * dir[1], -cos(rotZ) * dir[0] + sin(rotZ) * dir[1], dir[2]];
 	for(var i=0;i<3;i++) {
@@ -150,9 +166,26 @@ function tick() {
 		set(pi,1);
 		draw();
 	}
+	var remainingGlitches = [];
+	if(glitches) {
+		glitches.forEach(function(g){
+			if(distance(pos,g)>0.1) {
+				remainingGlitches.push(g);
+			} else {
+				glitchesFound += 1;
+			}
+		});
+		if(glitches.length!=remainingGlitches.length) {
+			glitches = remainingGlitches;
+			draw();
+		}
+	}
 }
 function update() {
 	tick();
+	if(Math.random()<0.01) {
+		draw();
+	}
 	var w = screen.width = innerWidth
 	var h = screen.height = innerHeight
 	gl.viewport(0, 0, w, h);
@@ -187,6 +220,7 @@ socket.on("digStart", function(timeLeft) {
 	pos = [mapSize/2,mapSize/2,mapSize/2];
 	set(floorv(pos), 1);
 	dugOut = [];
+	glitches = null;
 	draw();
 	moveLocked = false;
 	message = function(){return "Dig! "+getSecondsRemaining()+" seconds remainig"};
@@ -219,14 +253,36 @@ socket.on("hideEnd", function(timeLeft){
 socket.on("findStart", function(timeLeft, positions){
 	setDeadline(timeLeft);
 	glitches = positions;
-	console.log(glitches);
+	glitchesFound = 0;
+	totalGlitches = glitches.length;
+	draw();
 	moveLocked = false;
 	message = function(){return "Find "+glitches.length+" glitches! "+getSecondsRemaining()+" seconds remaining"};
 });
 socket.on("findEnd", function(timeLeft){
+	socket.emit("glitchesFound", glitchesFound);
 	setDeadline(timeLeft);
 	moveLocked = true;
-	message = function(){return "Dig starts in "+getSecondsRemaining()+" seconds"};
+	message = function(){return "Found "+glitchesFound+"/"+totalGlitches+" glitches. Scores in "+getSecondsRemaining()+" seconds"};
+});
+socket.on("score", function(timeLeft, myId, scores){
+	setDeadline(timeLeft);
+	moveLocked = true;
+	message = function(){
+		var m = "New round in "+getSecondsRemaining()+" seconds.\n";
+		var i = 0;
+		scores.forEach(function(s){
+			i++;
+			m+=i+": ";
+			if(s[0] === myId){
+				m+="         You";
+			} else {
+				m+=("    Player #"+s[0]).slice(-12);
+			}
+			m+=" - "+s[1]+" points\n";
+		});
+		return m;
+	};
 });
 socket.on("connect", function () {
 	message = function(){return "Connected. Wait for next turn."};
